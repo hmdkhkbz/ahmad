@@ -1,0 +1,31 @@
+- name: Initialize Docker Swarm
+  shell: docker swarm init --advertise-addr {{ manager_ip }}
+  when: ansible_host == "{{ manager_ip }}"
+  ignore_errors: yes
+  register: init_output
+
+- name: Debug - Print init_output
+  debug:
+    var: init_output
+  when: ansible_host == "{{ manager_ip }}"
+
+- name: Get worker join token
+  shell: docker swarm join-token -q worker
+  delegate_to: "{{ manager_ip }}"
+  run_once: true
+  register: worker_token
+
+- name: Set worker join token for all hosts
+  set_fact:
+    swarm_worker_token: "{{ worker_token.stdout }}"
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['all'] }}"
+
+- name: Debug - Print worker_token
+  debug:
+    var: swarm_worker_token
+  when: ansible_host == "{{ manager_ip }}"
+
+- name: Join swarm as a worker node
+  shell: docker swarm join --token {{ swarm_worker_token }} {{ manager_ip }}:2377
+  when: ansible_host != "{{ manager_ip }}"

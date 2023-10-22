@@ -1,0 +1,16 @@
+all:
+  children:
+    swarm_manager:
+      hosts:
+        manager01:
+          ansible_host: 37.32.12.237
+          ansible_ssh_user: root
+    swarm_worker:
+      hosts:
+        worker01:
+          ansible_host: 37.32.12.20
+          ansible_ssh_user: root
+        worker02:
+          ansible_host: 37.32.13.165
+          ansible_ssh_user: root
+

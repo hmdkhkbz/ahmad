@@ -1,0 +1,27 @@
+- name: pre-setup
+  hosts: all
+  become: true
+  roles:
+    - prestage
+  tags: [prestage]
+
+- name: installing docker
+  hosts: all
+  become: true
+  roles:
+    - docker
+  tags: [docker]
+
+- name: setting up swarm cluster 
+  hosts: all
+  become: true
+  roles:
+    - swarm
+  tags: [swarm]
+
+- name: setting up mongo cluster
+  hosts: swarm_manager
+  become: true
+  roles:
+    - mongo
+  tags: [mongo]

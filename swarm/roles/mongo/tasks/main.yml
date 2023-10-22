@@ -1,0 +1,79 @@
+- name: Install pip for Python 2
+  apt:
+    name: python-pip
+    state: present
+  when: ansible_distribution == 'Ubuntu'  
+
+- name: Install pip3 for Python 3
+  apt:
+    name: python3-pip
+    state: present
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Install Docker SDK for Python
+  become: yes
+  pip:
+    name: docker
+    executable: pip3  # Specify pip3 for Python 3
+  when: ansible_python.version.major == 3 
+
+
+
+- name: Create MongoDB Overlay Network
+  command: docker network create --driver overlay mongodb_overlay
+  args:
+    creates: mongodb_overlay 
+
+- name: Deploy MongoDB Services
+  command: > 
+    docker service create 
+    --name {{ item.name }} 
+    --network mongodb_overlay 
+    --replicas 1 
+    --mount type=volume,source={{ item.name }}-data,target=/data/db 
+    --mount type=volume,source={{ item.name }}-config,target=/data/configdb 
+    mongo:latest mongod --replSet rs0
+  loop:
+    - { name: 'mongo1' }
+    - { name: 'mongo2' }
+    - { name: 'mongo3' }
+  loop_control:
+    loop_var: item
+
+- name: Wait for MongoDB containers to be up
+  docker_container:
+    name: "{{ item.name }}"
+    state: started
+  loop:
+    - { name: 'mongo1' }
+    - { name: 'mongo2' }
+    - { name: 'mongo3' }
+  loop_control:
+    loop_var: item
+  ignore_errors: yes
+
+
+
+- name: Install MongoDB Client on the Host
+  become: yes
+  apt:
+    name: mongodb-clients 
+    state: present
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Initialize the MongoDB Replica Set
+  command: >
+    mongo --eval 'rs.initiate(
+      {
+        _id: "rs0",
+        members: [
+          { _id: 0, host: "mongo1:27017" },
+          { _id: 1, host: "mongo2:27017" },
+          { _id: 2, host: "mongo3:27017" }
+        ]
+      })'
+  args:
+    warn: no
+  run_once: true
+
+
